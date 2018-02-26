@@ -1,1 +1,0 @@
-# sap-abap-mode
