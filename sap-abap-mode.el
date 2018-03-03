@@ -33,7 +33,7 @@
 ;;; Code:
 
 ;;; Dev Log
-;; FIXME Only when * is in the begining of the line should the line be comment line!
+;; DONE Only when * is in the begining of the line should the line be comment line!
 
 ;; define keywords 
 ;; ABAP keywords
@@ -341,11 +341,12 @@
         "TYPE" "OF" "LENGTH" "REF" "TO" "BY"
         "IMPLEMENTATION" "DEFINITION"
         "EXPORTING" "IMPORTING" "RETURNING" "EXCEPTIONS"
-        "BEGIN" "END"
+        "BEGIN OF" "END OF" "OCCURS"
         "ADJACENT" "DUPLICATES" "FROM" "LINES"
         "WITH" "DEFAULT" "UNIQUE" "KEY"
         "TRANSPORTING" "NO FIELDS"
         "STANDARD" "SORTED" "HASHED" "TABLE"
+        "PUBLIC" "FINAL" "CREATE PUBLIC" "CREATE PRIVATE" "RASING" 
         ))
 
 ;; (setq sap-abap-keywords '("REPORT" "DATA" "DATA:" "TYPE" "REF" "TYPES" "TABLES" "AT" "BEGIN" "OF" "TIMES" "PERFORM" "APPEND" "CLEAR" "TO" "CALL" "FUNCTION" "EXPORTING" "EXCEPTIONS" "SELECT" "UP" "FROM" "INTO" "CORRESPONDING" "FIELDS" "TABLE" "GT" "LT" "EQ" "LE" "GE" "INSERT" "INTO" "MODIFY" "WHEN" "USING" "LIKE" "CHANGING" "TYPE-POOLS" "ROWS" "INITIAL" "SIZE" "WITH" "HEADER" "LINE" "LINES" "WRITE" "ASSIGNING" "READ" "IMPORT" "EXPORT"  "IMPORTING" "PUBLIC" "FINAL" "DEFINITION" "CREATE PUBLIC" "PUBLIC SECTION" "CLASS-METHODS" "PROTECTED SECTION" "PRIVATE SECTION" "METHODS" "CONSTANTS" "VALUE" "NOT" "IS" "BOUND" "IMPLEMENTATION" "CHECK"))
@@ -376,25 +377,43 @@
         ;; Order above matters, in general longer words first
         ))
 
+(defun sap-abap-syntax-propertize-comment(start end)
+  (let ((case-fold-search nil))
+    (goto-char start)
+    (funcall
+     (syntax-propertize-rules
+      ("\\(^*.*\\)$" (0 "<")))
+     start end)
+    ))
 
 ;;;###autoload
 (define-derived-mode sap-abap-mode prog-mode
   "ABAP Mode"
-  ;; Code for syntax highlighting
-  (setq-local font-lock-defaults '(sap-abap-font-lock-keywords nil t))
-  (setq-local indent-line-function 'sap-abap-indent-line)
-  (setq-local comment-start "*")
-  (setq-local comment-style "plain")
+  ;; "Major mode for the ABAP Programming Language"
 
-  "Major mode for the ABAP Programming Language"
+  ;;; Syntax Table
   (modify-syntax-entry ?' "\"")
-  (modify-syntax-entry ?\" "<")
-  (modify-syntax-entry ?*  "<")
-  (modify-syntax-entry ?\n ">")
   (modify-syntax-entry ?_  "w")
   (modify-syntax-entry ?-  "w")
   (modify-syntax-entry ?|  "\"")
+  ;; Comment Style of Staring with "
+  (modify-syntax-entry ?\" "<")
+  (modify-syntax-entry ?\n ">")
+
+  ;;; Search Based
+  ;; Code for syntax highlighting
+  (setq-local font-lock-defaults '(sap-abap-font-lock-keywords nil t))
+  (setq-local indent-line-function 'sap-abap-indent-line)
+
+  ;;; Try to Hack into Syntactic Analyses
+  ;;; When * Is not at the beginning of line, shouldn't be Comment
+  (setq-local syntax-propertize-function 'sap-abap-syntax-propertize-comment)
+
+  ;; (setq-local comment-start "*")
+  ;; (setq-local comment-style "plain")
+
   )
+
 
 ;; clear memory
 (setq sap-abap-keywords nil)
