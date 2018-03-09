@@ -1,4 +1,4 @@
-;;; sap-abap-indention.el --- Indention functions    -*- lexical-binding: t; -*-
+;;; abap-indention.el --- Indention functions    -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2018  Marvin Qian
 
@@ -38,9 +38,9 @@
 ;; define keywords 
 ;; ABAP keywords
 ;; Refer to https://help.sap.com/doc/abapdocu_751_index_htm/7.51/en-US/abenabap_statements_overview.htm
-(require 'sap-abap-indention)
+(require 'abap-indention)
 
-(setq sap-abap-keywords
+(setq abap-keywords
       '(
         ;; Introductory Statements for Programs
         "CLASS-POOL"
@@ -349,35 +349,35 @@
         "PUBLIC" "FINAL" "CREATE PUBLIC" "CREATE PRIVATE" "RASING" 
         ))
 
-;; (setq sap-abap-keywords '("REPORT" "DATA" "DATA:" "TYPE" "REF" "TYPES" "TABLES" "AT" "BEGIN" "OF" "TIMES" "PERFORM" "APPEND" "CLEAR" "TO" "CALL" "FUNCTION" "EXPORTING" "EXCEPTIONS" "SELECT" "UP" "FROM" "INTO" "CORRESPONDING" "FIELDS" "TABLE" "GT" "LT" "EQ" "LE" "GE" "INSERT" "INTO" "MODIFY" "WHEN" "USING" "LIKE" "CHANGING" "TYPE-POOLS" "ROWS" "INITIAL" "SIZE" "WITH" "HEADER" "LINE" "LINES" "WRITE" "ASSIGNING" "READ" "IMPORT" "EXPORT"  "IMPORTING" "PUBLIC" "FINAL" "DEFINITION" "CREATE PUBLIC" "PUBLIC SECTION" "CLASS-METHODS" "PROTECTED SECTION" "PRIVATE SECTION" "METHODS" "CONSTANTS" "VALUE" "NOT" "IS" "BOUND" "IMPLEMENTATION" "CHECK"))
+;; (setq abap-keywords '("REPORT" "DATA" "DATA:" "TYPE" "REF" "TYPES" "TABLES" "AT" "BEGIN" "OF" "TIMES" "PERFORM" "APPEND" "CLEAR" "TO" "CALL" "FUNCTION" "EXPORTING" "EXCEPTIONS" "SELECT" "UP" "FROM" "INTO" "CORRESPONDING" "FIELDS" "TABLE" "GT" "LT" "EQ" "LE" "GE" "INSERT" "INTO" "MODIFY" "WHEN" "USING" "LIKE" "CHANGING" "TYPE-POOLS" "ROWS" "INITIAL" "SIZE" "WITH" "HEADER" "LINE" "LINES" "WRITE" "ASSIGNING" "READ" "IMPORT" "EXPORT"  "IMPORTING" "PUBLIC" "FINAL" "DEFINITION" "CREATE PUBLIC" "PUBLIC SECTION" "CLASS-METHODS" "PROTECTED SECTION" "PRIVATE SECTION" "METHODS" "CONSTANTS" "VALUE" "NOT" "IS" "BOUND" "IMPLEMENTATION" "CHECK"))
 
 
-;; (setq sap-abap-keywords (append sap-abap-keywords-open sap-abap-keywords-close sap-abap-keywords))
+;; (setq abap-keywords (append abap-keywords-open abap-keywords-close abap-keywords))
 
-(setq sap-abap-types    '("C" "I" "F" "STRING" "X" "XSTRING" "N" "P" "ABAP_BOOL") )
-(setq sap-abap-constants '("SPACE" "SY-" "ABAP_FALSE" "ABAP_TRUE"))
-(setq sap-abap-events    '("START-OF-SELECTION" "AT SELECTION-SCREEN"))
-(setq sap-abap-functions '("STRLEN" "CONCATENATE" "SPLIT" ))
+(setq abap-types    '("C" "I" "F" "STRING" "X" "XSTRING" "N" "P" "ABAP_BOOL") )
+(setq abap-constants '("SPACE" "SY-" "ABAP_FALSE" "ABAP_TRUE"))
+(setq abap-events    '("START-OF-SELECTION" "AT SELECTION-SCREEN"))
+(setq abap-functions '("STRLEN" "CONCATENATE" "SPLIT" ))
 
 ;; Generate regex string for each category
-(setq sap-abap-keywords-regexp  ( regexp-opt sap-abap-keywords  'words))
-(setq sap-abap-type-regexp      ( regexp-opt sap-abap-types     'words))
-(setq sap-abap-constants-regexp ( regexp-opt sap-abap-constants 'words))
-(setq sap-abap-event-regexp     ( regexp-opt sap-abap-events    'words))
-(setq sap-abap-functions-regexp ( regexp-opt sap-abap-functions 'words))
+(setq abap-keywords-regexp  ( regexp-opt abap-keywords  'words))
+(setq abap-type-regexp      ( regexp-opt abap-types     'words))
+(setq abap-constants-regexp ( regexp-opt abap-constants 'words))
+(setq abap-event-regexp     ( regexp-opt abap-events    'words))
+(setq abap-functions-regexp ( regexp-opt abap-functions 'words))
 
 ;; create the list for font-lock
-(setq sap-abap-font-lock-keywords
+(setq abap-font-lock-keywords
       `(
-        (,sap-abap-constants-regexp . font-lock-constant-face)
-        (,sap-abap-event-regexp     . font-lock-builtin-face)
-        (,sap-abap-functions-regexp . font-lock-function-name-face)
-        (,sap-abap-keywords-regexp  . font-lock-keyword-face)
-        (,sap-abap-type-regexp      . font-lock-type-face)
+        (,abap-constants-regexp . font-lock-constant-face)
+        (,abap-event-regexp     . font-lock-builtin-face)
+        (,abap-functions-regexp . font-lock-function-name-face)
+        (,abap-keywords-regexp  . font-lock-keyword-face)
+        (,abap-type-regexp      . font-lock-type-face)
         ;; Order above matters, in general longer words first
         ))
 
-(defun sap-abap-syntax-propertize-comment(start end)
+(defun abap-syntax-propertize-comment(start end)
   (let ((case-fold-search nil))
     (goto-char start)
     (funcall
@@ -387,7 +387,7 @@
     ))
 
 ;;;###autoload
-(define-derived-mode sap-abap-mode prog-mode
+(define-derived-mode abap-mode prog-mode
   "ABAP Mode"
   ;; "Major mode for the ABAP Programming Language"
 
@@ -402,12 +402,12 @@
 
   ;;; Search Based
   ;; Code for syntax highlighting
-  (setq-local font-lock-defaults '(sap-abap-font-lock-keywords nil t))
-  (setq-local indent-line-function 'sap-abap-indent-line)
+  (setq-local font-lock-defaults '(abap-font-lock-keywords nil t))
+  (setq-local indent-line-function 'abap-indent-line)
 
   ;;; Try to Hack into Syntactic Analyses
   ;;; When * Is not at the beginning of line, shouldn't be Comment
-  (setq-local syntax-propertize-function 'sap-abap-syntax-propertize-comment)
+  (setq-local syntax-propertize-function 'abap-syntax-propertize-comment)
 
   ;; (setq-local comment-start "*")
   ;; (setq-local comment-style "plain")
@@ -416,20 +416,20 @@
 
 
 ;; clear memory
-(setq sap-abap-keywords nil)
-(setq sap-abap-types    nil)
-(setq sap-abap-constants nil)
-(setq sap-abap-events    nil)
-(setq sap-abap-functions nil)
+(setq abap-keywords nil)
+(setq abap-types    nil)
+(setq abap-constants nil)
+(setq abap-events    nil)
+(setq abap-functions nil)
 
-(setq sap-abap-keywords-regexp nil)
-(setq sap-abap-type-regexp    nil)
-(setq sap-abap-constants-regexp nil)
-(setq sap-abap-event-regexp    nil)
-(setq sap-abap-functions-regexp nil)
+(setq abap-keywords-regexp nil)
+(setq abap-type-regexp    nil)
+(setq abap-constants-regexp nil)
+(setq abap-event-regexp    nil)
+(setq abap-functions-regexp nil)
 
 ;; add the mode to the list
-(provide 'sap-abap-mode)
+(provide 'abap-mode)
 
 ;; Local Variables:
 ;; coding: utf-8
