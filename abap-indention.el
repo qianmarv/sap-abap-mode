@@ -1,9 +1,9 @@
-;;; sap-abap-indention.el --- Indention functions    -*- lexical-binding: t; -*-
+;;; abap-indention.el --- Indention functions    -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2018  Marvin Qian
 
 ;; Author: Marvin Qian <qianmarv@gmail.com>
-;; Keywords: sap-abap-mode
+;; Keywords: abap-mode
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@
 
 ;;; Code:
 
-(setq sap-abap-keywords-open '("IF" "ELSE" "LOOP" "DO" "FORM" "CASE" "CLASS" "TRY" "CATCH" "METHOD" "BEGIN OF"))
+(setq abap-keywords-open '("IF" "ELSE" "LOOP" "DO" "FORM" "CASE" "CLASS" "TRY" "CATCH" "METHOD" "BEGIN OF"))
 
-(setq sap-abap-keywords-close '("ENDIF" "ENDCLASS" "ENDMETHOD" "ENDTRY" "END" "ENDLOOP" "ENDFORM" "ENDCASE" "ENDDO" "END OF"))
+(setq abap-keywords-close '("ENDIF" "ENDCLASS" "ENDMETHOD" "ENDTRY" "END" "ENDLOOP" "ENDFORM" "ENDCASE" "ENDDO" "END OF"))
 
 
-(defun sap-abap-delete-leading-space()
+(defun abap-delete-leading-space()
   " Delete leading SPACE / TAB"
   (let ((end (progn
                (back-to-indentation)
@@ -41,7 +41,7 @@
     )
   )
 
-(defun sap-abap-is-line-empty()
+(defun abap-is-line-empty()
   "Check space line"
   ;; (beginning-of-line)
   (back-to-indentation)
@@ -50,46 +50,46 @@
     nil
     ))
 
-(defun sap-abap-goto-prev-non-empty-line()
+(defun abap-goto-prev-non-empty-line()
   "goto previous non empty line"
   (previous-line)
   (if (and (not (= 1 (point)))
-           (sap-abap-is-line-empty))
-      (sap-abap-goto-prev-non-empty-line)
+           (abap-is-line-empty))
+      (abap-goto-prev-non-empty-line)
     ))
 
-(defun sap-abap-get-prev-line-width ()
+(defun abap-get-prev-line-width ()
   "Get width of previous non empty line"
   (save-excursion
-    (sap-abap-goto-prev-non-empty-line)
+    (abap-goto-prev-non-empty-line)
     (current-column)))
 
-(defun sap-abap-calc-indent ()
+(defun abap-calc-indent ()
   "Get width of previous non empty line"
   (save-excursion
     (back-to-indentation)
     ;; (beginning-of-line)
     ;; Close
-    (let ((offset (if (looking-at (regexp-opt sap-abap-keywords-close 'words))
+    (let ((offset (if (looking-at (regexp-opt abap-keywords-close 'words))
                       (* -1 tab-width)
                     0)))
-      (sap-abap-goto-prev-non-empty-line)
-      (if (looking-at (regexp-opt sap-abap-keywords-open 'words))
+      (abap-goto-prev-non-empty-line)
+      (if (looking-at (regexp-opt abap-keywords-open 'words))
       ;; (if (looking-at "METHOD ")
           (+ (current-column) tab-width offset)
         (+ (current-column) offset)
         )
       )))
 
-(defun sap-abap-indent-line ()
+(defun abap-indent-line ()
   "Indent ABAP Line"
   (let (
         (width tab-width)
-        (indent (sap-abap-calc-indent)))
+        (indent (abap-calc-indent)))
     ;; (save-excursion
-    (sap-abap-delete-leading-space)
+    (abap-delete-leading-space)
     (indent-to indent)))
 
 
-(provide 'sap-abap-indention)
-;;; sap-abap-indention.el ends here
+(provide 'abap-indention)
+;;; abap-indention.el ends here
