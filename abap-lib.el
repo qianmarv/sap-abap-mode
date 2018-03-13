@@ -53,32 +53,48 @@
 (defvar abaplib-system-ID nil
   "ABAP system client used for login.")
 
-(defun abaplib-setup-project ()
+(defvar abaplib-project-dir nil
+  "ABAP Project Directory")
+
+(defvar abaplib-project-config-dir nil
+  "ABAP Project Directory")
+
+
+(defun setup-abap-project ()
   "Setup ABAP Project"
   (interactive
    (let* ((system-id (read-string "System ID: "))
           (server-address (read-string "Server Address: "))
-          (http-port (read-string "ICM HTTP Port: "))
-          (project-dir (format "%s/%s/" abap-workspace-dir system-id)))
+          (http-port (read-string "ICM HTTP Port: ")))
      (unless (file-directory-p abap-workspace-dir)
        (make-directory abap-workspace-dir))
-     (if (file-directory-p project-dir)
+     (setq abaplib-project-dir (format "%s/%s" abap-workspace-dir system-id))
+     (setq abaplib-project-config-dir (format "%s/.abap/" abaplib-project-dir))
+     (if (file-directory-p abaplib-project-dir)
          (message "Project %s already exist!" system-id)
-       (progn
-         (make-directory project-dir)
-         (make-directory (format "%s/.abap/" project-dir))
+       (let ((abap-config-file (format "%s/system.ini" abaplib-project-config-dir)))
+         (make-directory abaplib-project-dir)
+         (make-directory abaplib-project-config-dir)
+         (write-region
+          (concat
+           (format "Server=%s\n" server-address)
+           (format "HttpPort=%s\n" http-port))
+          nil
+          abap-config-file
+          )
+         (Message "Project Initialized Successfully!")
          ))
      )))
 
 (defun abaplib-get-service-uri (service-name &optional object-name)
-  (cond (
-         ((eq service-name "query-object")
-          (format "/sap/bc/adt/repository/informationsystem/search?operation=quickSearch&query=%s&maxResults=%s" object-name abap-query-list-max-result))
-         ((eq service-name "get-program-metadata")
-          (format "/sap/bc/adt/programs/programs/%s" object-name))
-         ((eq service-name "get-program-source")
-          (format "/sap/bc/adt/programs/programs/%s/source/main" object-name))
-         )))
+  (cond
+   ((string= service-name "query-object")
+    (format "/sap/bc/adt/repository/informationsystem/search?operation=quickSearch&query=%s&maxResults=%s" object-name abap-query-list-max-result))
+   ((string= service-name "get-program-metadata")
+    (format "/sap/bc/adt/programs/programs/%s" object-name))
+   ((string= service-name "get-program-source")
+    (format "/sap/bc/adt/programs/programs/%s/source/main" object-name))
+   ))
 
 (defun abaplib-login (username password client)
   "Login into ABAP Server as user USERNAME with PASSWORD and CLIENT
@@ -108,12 +124,38 @@ After a successful login, store the authentication token in `abaplib-token'."
                   args))
           nil))
 
-(defun abaplib-get-program-source (source &optional callback &rest args)
+;; (defun abaplib-get-program-source (source &optional callback &rest args)
+;;   (abaplib-service-call
+;;    (format "/sap/bc/adt/programs/programs/%s/source/main" source)
+;;    callback
+;;    args
+;;    ))
+
+(defun abaplib-pull-program (program_name)
+  ;; Retrieve metadata
   (abaplib-service-call
-   (format "/sap/bc/adt/programs/programs/%s/source/main" source)
-   callback
-   args
-   ))
+   (abaplib-get-service-uri "get-program-metadata" programe_name)
+   (lambda (&rest data)
+     (let ((prog_metadata (format "%s" (cl-getf data :data)))
+           (file (format "%s/%s.prog.xml" abaplib-project-config-dir programe_name)))
+       ;; (get-buffer-create "*ABAP*")
+       ;; (switch-to-buffer "*ABAP*")
+       ;; (insert idata)
+       (write-region prog_metadata nil file)
+       )))
+
+  ;; Retrieve source
+  ;; (abaplib-service-call
+  ;;  (abaplib-get-service-uri "get-program-source" programe_name)
+  ;;  (lambda (&rest data)
+  ;;    (let ((prog_metadata (format "%s" (cl-getf data :data)))
+  ;;          (file (format "%s/%s.prog.abap" abaplib-project-dir programe_name)))
+  ;;      ;; (get-buffer-create "*ABAP*")
+  ;;      ;; (switch-to-buffer "*ABAP*")
+  ;;      ;; (insert idata)
+  ;;      (write-region prog_metadata nil file)
+  ;;      )))
+  )
 
 (provide 'abaplib)
 ;;; abaplib.el ends here
