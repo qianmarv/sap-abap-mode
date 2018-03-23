@@ -24,9 +24,9 @@
 
 ;;; Code:
 
-(setq abap-keywords-open '("IF" "ELSE" "LOOP" "DO" "FORM" "CASE" "CLASS" "TRY" "CATCH" "METHOD" "BEGIN OF"))
+(setq abap--keywords-open '("IF" "ELSE" "LOOP" "DO" "FORM" "CASE" "CLASS" "TRY" "METHOD" "BEGIN OF"))
 
-(setq abap-keywords-close '("ENDIF" "ENDCLASS" "ENDMETHOD" "ENDTRY" "END" "ENDLOOP" "ENDFORM" "ENDCASE" "ENDDO" "END OF"))
+(setq abap--keywords-close '("ENDIF" "ENDCLASS" "ENDMETHOD" "ENDTRY" "END" "ENDLOOP" "ENDFORM" "ENDCASE" "ENDDO" "END OF"))
 
 
 (defun abap-delete-leading-space()
@@ -41,27 +41,38 @@
     )
   )
 
-(defun abap-is-line-empty()
+(defun abap-is-empty-line()
   "Check space line"
   ;; (beginning-of-line)
-  (back-to-indentation)
-  (if (looking-at "$")
-      t
-    nil
+  (save-excursion
+    (back-to-indentation)
+    (looking-at "$")))
+
+(defun abap-is-comment-line()
+  (save-excursion
+    (back-to-indentation)
+    (if (looking-at "\"")
+        t
+      (beginning-of-line)
+      (looking-at "*"))
     ))
 
-(defun abap-goto-prev-non-empty-line()
+(defun abap-is-first-line()
+  (= 1 (point)))
+
+(defun abap-goto-prev-statement-line()
   "goto previous non empty line"
   (previous-line)
-  (if (and (not (= 1 (point)))
-           (abap-is-line-empty))
-      (abap-goto-prev-non-empty-line)
+  (if (and (not (abap-is-first-line))
+           (or (abap-is-empty-line)
+               (abap-is-comment-line)))
+      (abap-goto-prev-statement-line)
     ))
 
 (defun abap-get-prev-line-width ()
   "Get width of previous non empty line"
   (save-excursion
-    (abap-goto-prev-non-empty-line)
+    (abap-goto-prev-statement-line)
     (current-column)))
 
 (defun abap-calc-indent ()
@@ -70,12 +81,11 @@
     (back-to-indentation)
     ;; (beginning-of-line)
     ;; Close
-    (let ((offset (if (looking-at (regexp-opt abap-keywords-close 'words))
+    (let ((offset (if (looking-at (regexp-opt abap--keywords-close 'words))
                       (* -1 tab-width)
                     0)))
-      (abap-goto-prev-non-empty-line)
-      (if (looking-at (regexp-opt abap-keywords-open 'words))
-      ;; (if (looking-at "METHOD ")
+      (abap-goto-prev-statement-line)
+      (if (looking-at (regexp-opt abap--keywords-open 'words))
           (+ (current-column) tab-width offset)
         (+ (current-column) offset)
         )
@@ -83,12 +93,12 @@
 
 (defun abap-indent-line ()
   "Indent ABAP Line"
-  (let (
-        (width tab-width)
-        (indent (abap-calc-indent)))
-    ;; (save-excursion
-    (abap-delete-leading-space)
-    (indent-to indent)))
+  (unless (abap-is-comment-line)
+    (let ((width tab-width)
+          (indent (abap-calc-indent)))
+      ;; (save-excursion
+      (abap-delete-leading-space)
+      (indent-to indent))))
 
 
 (provide 'abap-indention)

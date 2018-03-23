@@ -48,29 +48,29 @@
   :type 'string
   :group 'abap-mode)
 
-(defvar abaplib-token nil
+(defvar abaplib--token nil
   "ABAP token used for authentication.")
 
-(defvar abaplib-client nil
+(defvar abaplib--client nil
   "ABAP system client used for login.")
 
 ;; (defvar abaplib-system-ID nil
 ;;   "ABAP system client used for login.")
-(defvar abaplib-service-url nil
+(defvar abaplib--service-url nil
   "The address of the abap server host")
 
 
-(defvar abaplib-project-name nil
+(defvar abaplib--project-name nil
   "Current ABAP Project")
 
-(defvar abaplib-project-dir nil
+(defvar abaplib--project-dir nil
   "ABAP Project Directory")
 
-(defvar abaplib-project-config-dir nil
+(defvar abaplib--project-config-dir nil
   "ABAP Project Configuration Directory")
 
 
-(defun setup-abap-project ()
+(defun abaplib-setup-project ()
   "Setup ABAP Project"
   (interactive
    (let* ((system-id (read-string "System ID: "))
@@ -78,22 +78,22 @@
           (http-port (read-string "ICM HTTP Port: ")))
      (unless (file-directory-p abap-workspace-dir)
        (make-directory abap-workspace-dir))
-     (setq abaplib-project-dir (format "%s/%s" abap-workspace-dir system-id))
-     (setq abaplib-project-config-dir (format "%s/.abap/" abaplib-project-dir))
-     (setq abaplib-project-name system-id)
+     (setq abaplib--project-dir (format "%s/%s" abap-workspace-dir system-id))
+     (setq abaplib--project-config-dir (format "%s/.abap/" abaplib--project-dir))
+     (setq abaplib--project-name system-id)
      ;; (setq abaplib-system-ID system-id)
-     (if (file-directory-p abaplib-project-dir)
-         (message "Project %s already exist!" system-id)
-       (let ((abap-config-file (format "%s/server.ini" abaplib-project-config-dir)))
-         (make-directory abaplib-project-dir)
-         (make-directory abaplib-project-config-dir)
+     (if (file-directory-p abaplib--project-dir)
+         (error "Project %s already exist!" system-id)
+       (let ((abap-config-file (format "%s/server.ini" abaplib--project-config-dir)))
+         (make-directory abaplib--project-dir)
+         (make-directory abaplib--project-config-dir)
          (write-region
           (concat
            (format "Server=%s\n" server-address)
            (format "HttpPort=%s\n" http-port))
           nil
           abap-config-file)
-         (setq abaplib-service-url (format "http://%s:%s/" server_address http_port))
+         (setq abaplib--service-url (format "http://%s:%s/" server_address http_port))
          (message "Project Initialized Successfully!")
          nil
          ))
@@ -122,69 +122,88 @@
 
 (defun abaplib-login ()
   "Login into ABAP Server as user USERNAME with PASSWORD and CLIENT
-After a successful login, store the authentication token in `abaplib-token'."
+After a successful login, store the authentication token in `abaplib--token'.
+  TODO Do real login and store cookies"
   (interactive
    (let ((username (upcase (read-string "Username: ")))
          (password (read-passwd "Password: "))
          (client   (read-string "Client: "  )))
-     (progn
-       (setq abaplib-token `("Authorization" . ,(format "Basic %s" (base64-encode-string (concat username ":" password)))))
-       (setq abaplib-client client)
-       nil) ;;TODO Don't show nil
-     )))
+     (let* ((trial-token `("Authorization" .
+                          ,(format "Basic %s"
+                                   (base64-encode-string (concat username ":" password)))))
+            (logon-uri "/sap/bc/adt/core/discovery")
+            (logon-status (request-response-symbol-status
+                           (request
+                            (concat  abaplib--service-url
+                                     (replace-regexp-in-string "^/*" "" logon-uri))
+                            :sync t
+                            :headers (list abaplib--token)
+                            :params (list (cons "sap-client" client))
+                            ))))
+
+       (if (eq logon-status 'success)
+           (progn
+             (setq abaplib--token trial-token)
+             (setq abaplib--client client)
+             (message "Logon successfully!")
+             nil)
+         (error "Logon Failed!")
+         nil)
+       ))))
 
 (defun abaplib-select-project ()
   "Select Existing Project"
   (interactive)
-   (let ((project_name (completing-read "Select Project: " (abaplib-get-project-list))))
-     (unless (string= project_name abaplib-project-name)
-       (setq abaplib-token nil)
-       (let* ((abap-config-dir (expand-file-name (format "%s/.abap" project_name) abap-workspace-dir))
-              (abap-config-file (expand-file-name "server.ini" abap-config-dir)))
-         ;; Read server information
-         (with-temp-buffer
-           (insert-file-contents abap-config-file)
-           (let ((server_address)
-                 (http_port))
-             (mapcar
-              (lambda (item)
-                (let* ((config (split-string item "=" t))
-                       (config_id (car config))
-                       (config_value (car (cdr config))))
-                  (cond ((string= config_id "Server") (setq server_address config_value))
-                        ((string= config_id "HttpPort") (setq http_port config_value)))
-                  ))
-              (split-string (buffer-string) "\n" t))
-             (unless (and server_address http_port)
-               (error "Not a valid project!"))
-             (cond
-              ((string= http_port "80") (setq abaplib-service-url (format "http://%s/" server_address)))
-              ((string= http_port "443") (setq abaplib-service-url (format "https://%s/" server_address)))
-              (t (setq abaplib-service-url (format "http://%s:%s/" server_address http_port))))
-             (setq abaplib-project-dir (format "%s/%s" abap-workspace-dir project_name))
-             (setq abaplib-project-config-dir (format "%s/.abap/" abaplib-project-dir))
-             (setq abaplib-project-name project_name)
-             ))
-         )
-       )
-     (helm-open-dired abaplib-project-dir))
-   )
+  (let ((project_name (completing-read "Select Project: " (abaplib-get-project-list))))
+    (unless (string= project_name abaplib--project-name)
+      (setq abaplib--token nil)
+      (let* ((abap-config-dir (expand-file-name (format "%s/.abap" project_name) abap-workspace-dir))
+             (abap-config-file (expand-file-name "server.ini" abap-config-dir)))
+        ;; Read server information
+        (with-temp-buffer
+          (insert-file-contents abap-config-file)
+          (let ((server_address)
+                (http_port))
+            (mapcar
+             (lambda (item)
+               (let* ((config (split-string item "=" t))
+                      (config_id (car config))
+                      (config_value (car (cdr config))))
+                 (cond ((string= config_id "Server") (setq server_address config_value))
+                       ((string= config_id "HttpPort") (setq http_port config_value)))
+                 ))
+             (split-string (buffer-string) "\n" t))
+            (unless (and server_address http_port)
+              (error "Not a valid project!"))
+            (cond
+             ((string= http_port "80") (setq abaplib--service-url (format "http://%s/" server_address)))
+             ((string= http_port "443") (setq abaplib--service-url (format "https://%s/" server_address)))
+             (t (setq abaplib--service-url (format "http://%s:%s/" server_address http_port))))
+            (setq abaplib--project-dir (format "%s/%s" abap-workspace-dir project_name))
+            (setq abaplib--project-config-dir (format "%s/.abap/" abaplib--project-dir))
+            (setq abaplib--project-name project_name)
+            ))
+        )
+      )
+    (helm-open-dired abaplib--project-dir))
+  )
 
 (defun abaplib-service-call (api success &rest args)
   "Invoke corresponding service API."
-  (unless abaplib-project-name
+  (unless abaplib--project-name
     (call-interactively 'abaplib-select-project))
-  (unless abaplib-token
+  (unless abaplib--token ;; Try to logon for the first time
     (call-interactively 'abaplib-login))
+
   (append (request-response-data
            (apply #'request (if (string-match "^http[s]*://" api) api
-                              (concat (replace-regexp-in-string "/*$" "/" abaplib-service-url)
+                              (concat (replace-regexp-in-string "/*$" "/" abaplib--service-url)
                                       (replace-regexp-in-string "^/*" "" api)))
                   :sync (not success)
-                  :headers (append (list abaplib-token) (cl-getf args :headers))
-                  :status-code '((304 . (lambda (&rest _) (message "Not Modified")))
-                                 (401 . (lambda (&rest _) (message "Not Authorized"))))
-                  :params `((sap-client . ,abaplib-client))
+                  :headers (append (list abaplib--token) (cl-getf args :headers))
+                  :status-code '((304 . (lambda (&rest _) (message "Source Not Modified")))
+                                 (401 . (lambda (&rest _) (error "Not Authorized"))))
+                  :params `((sap-client . ,abaplib--client))
                   :success success
                   :error  (lambda (&key error-thrown &allow-other-keys &rest _)
                             (message "Got error: %S" error-thrown))
@@ -195,11 +214,11 @@ After a successful login, store the authentication token in `abaplib-token'."
 
 ;; (append (request-response-data
 ;;          (apply #'request (if (string-match "^http[s]*://" api) api
-;;                             (concat (replace-regexp-in-string "/*$" "/" abaplib-service-url)
+;;                             (concat (replace-regexp-in-string "/*$" "/" abaplib--service-url)
 ;;                                     (replace-regexp-in-string "^/*" "" api)))
 ;;                 :sync nil
-;;                 :headers `(,abaplib-token ("Content-Type" . "application/json"))
-;;                 :params `((sap-client . ,abaplib-client))
+;;                 :headers `(,abaplib--token ("Content-Type" . "application/json"))
+;;                 :params `((sap-client . ,abaplib--client))
 ;;                 :parser 'buffer-string
 ;;                 :complete (lambda (&rest_) (message "Call \"%s\" complete" api))
 ;;                 args))
@@ -207,11 +226,15 @@ After a successful login, store the authentication token in `abaplib-token'."
 ;; )
 
 ;; 0. Query List
-;; 1. Pull
+;; 1. Pull 
 ;; 2. Check Syntax
 ;; 3. Save to Server
 ;; 3.1 Lock
 ;; 4. Activate At Server
+
+;; Supported Object Type
+;;;; DCLS => Access Control
+;;;; DDLS => Data Definition
 
 ;; ------------------------------------------Process----------------------------------------
 
@@ -227,6 +250,9 @@ After a successful login, store the authentication token in `abaplib-token'."
 ;;;; POST /sap/bc/adt/checkruns?reporters=abapCheckRun
 ;;;; Before Submit to Server, Need base64 encode source and wrap into posting xml
 ;;;; After Saved to Server, 
+;;;; 1. Active Version
+;;;; 2. Unsaved Version
+;;;; 3. Saved in server version
 
 ;; Save Source In Server
 ;;;; PUT /sap/bc/adt/programs/programs/zmq_abap_test01/source/main?lockHandle=tdOnBGpU37goVbesZZSK6aK%2FG%2FA%3D HTTP/1.1
@@ -247,65 +273,80 @@ After a successful login, store the authentication token in `abaplib-token'."
 (defun abaplib-xml-parser()
   (libxml-parse-xml-region (point-min) (point-max)))
 
-(defun abaplib-pull-program (programe_name)
+
+
+(defun abaplib-request-object-list (object-name)
+  (xml-get-children
+   (abaplib-service-call
+    (abaplib-get-service-uri "query-object" (format "%s%%2A" object-name))
+    nil
+    :parser 'abaplib-xml-parser)
+   'objectReference))
+
+(defun abaplib-convert-object-plain-list (object-list)
+  (mapcar (lambda (obj)
+            (let* ((attrs       (xml-node-attributes obj))
+                   (type        (cdr (assq 'type        attrs)))
+                   (name        (cdr (assq 'name        attrs)))
+                   (packageName (cdr (assq 'packageName attrs)))
+                   (description (cdr (assq 'description attrs)))
+                   )
+              (list (format "%-8s%-31s%s" type name description))))
+          object-list))
+
+(defun abaplib-pull-abap-object ()
+  (interactive
+   (let* ((object-name (read-string "Enter Search String: "))
+          (object-list (abaplib-request-object-list object-name))
+          (object-plain-list (abaplib-convert-object-plain-list object-list))
+          (selected-object (split-string
+                            (completing-read "Maching Items: " object-plain-list)
+                            " "
+                            t))
+          (object-type (car selected-object))
+          (object-name (car (cdr selected-object))))
+
+     (cond ((string= object-type "PROG/P" ) (abaplib-prog-get-source object-name))
+           ((string= object-type "DDLS/DL") (message "TODO: Handle Retrieve CDS - Data Definition"))
+           ((string= object-type "DDLS/DF") (message "TODO: Handle Retrieve CDS - Entity"))
+           ((string= object-type "DCLS/DL") (message "TODO: Handle Retrieve CDS - Access Control"))
+           ((string= object-type "CLAS/OC") (message "TODO: Handle Retrieve Class")))
+     nil
+     )
+   ;; Retrieve Local Attribute File and Get ETag
+   ;; Compose request call
+   ;; Request to Server
+   ;; Write File & Open File
+   ))
+
+(defun abaplib-prog-get-source (prog_name)
   ;; Retrieve metadata
   (abaplib-service-call
-   (abaplib-get-service-uri "get-program-metadata" programe_name)
+   (abaplib-get-service-uri "get-program-metadata" prog_name)
    (lambda (&rest data)
      (let ((prog_metadata (format "%s" (cl-getf data :data)))
-           (file (format "%s/%s.prog.xml" abaplib-project-config-dir programe_name)))
-       ;; (get-buffer-create "*ABAP*")
-       ;; (switch-to-buffer "*ABAP*")
-       ;; (insert idata)
+           (file (format "%s/%s.prog.xml" abaplib--project-config-dir prog_name)))
        (write-region prog_metadata nil file)
        ))
-   :parser 'abaplib-xml-parser
+   :parser 'abaplib-sourcecode-parser
    )
+;; Retrieve source
+(abaplib-service-call
+ (abaplib-get-service-uri "get-program-source" prog_name)
+ (lambda (&rest data)
+   (let ((prog_source (format "%s" (cl-getf data :data)))
+         (file (format "%s/%s.prog.abap" abaplib--project-dir prog_name)))
+     (unless (string= prog_source "")
+       (write-region prog_source nil file)
+       nil
+       )))
+ :parser 'abaplib-sourcecode-parser
+ ;; :headers (list '("If-None-Match" . "201704241108050011")
+ ;;                '("Content-Type" . "plain/text"))
+ ))
 
-  (defun abaplib-request-object-list (object-name)
-    (xml-get-children
-     (abaplib-service-call
-      (abaplib-get-service-uri "query-object" (format "%s%%2A" object-name))
-      nil
-      :parser 'abaplib-xml-parser)
-     'objectReference))
-
-  (defun abaplib-convert-object-plain-list (object-list)
-    (mapcar (lambda (obj)
-              (let* ((attrs       (xml-node-attributes obj))
-                     (type        (cdr (assq 'type        attrs)))
-                     (name        (cdr (assq 'name        attrs)))
-                     (packageName (cdr (assq 'packageName attrs)))
-                     (description (cdr (assq 'description attrs)))
-                     )
-                (list (format "%-7s|%-30s|%s" type name description))))
-            object-list))
-
-  (defun abaplib-pull-abap-object ()
-    (interactive
-     (let* ((object-name (read-string "Enter Search String: "))
-            (obj-list (abaplib-request-object-list object-name))
-            (obj-plain-list (abaplib-convert-object-plain-list obj-list))
-            (selected-object (completing-read "Maching Items: " obj-plain-list)))
-       (message (format "Selected: %s" selected-object))
-       nil)
-     ))
-
-  ;; Retrieve source
-  ;; (abaplib-service-call
-  ;;  (abaplib-get-service-uri "get-program-source" programe_name)
-  ;;  (function* (lambda (&key data &allow-other-keys)
-  ;;               (unless (string= data "")
-  ;;                 (let ((prog_source data)
-  ;;                       (file (format "%s/%s.prog.abap" abaplib-project-dir programe_name)))
-  ;;                   (write-region prog_source nil file)
-  ;;                   nil
-  ;;                   ))))
-  ;;  :parser 'abaplib-sourcecode-parser
-  ;;  :headers (list '("If-None-Match" . "201704241108050011")
-  ;;                 '("Content-Type" . "plain/text"))
-  ;;  )
-  )
+(defun abaplib-prog-check-syntax (prog_name)
+  ())
 
 
 
