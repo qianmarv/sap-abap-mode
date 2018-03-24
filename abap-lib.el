@@ -59,7 +59,6 @@
 (defvar abaplib--service-url nil
   "The address of the abap server host")
 
-
 (defvar abaplib--project-name nil
   "Current ABAP Project")
 
@@ -69,6 +68,33 @@
 (defvar abaplib--project-config-dir nil
   "ABAP Project Configuration Directory")
 
+(defvar-local abaplib-object-props nil
+  "Local Variable: ABAP Object Properties")
+
+(defun abaplib-current-directory ()
+  (file-name-directory buffer-file-name))
+
+;; (defun abaplib-retrieve-project-info (&optional working_dir)
+;;   (let* ((working_dir (or working_dir (abaplib-current-directory)))
+;;          )
+;;     ))
+
+(defun abaplib-retrieve-object-property(object-name object-type)
+  (let ((property-file (format "%s%s.%s.xml"
+                               abaplib--project-config-dir
+                               object-name
+                               object-type)))
+    (with-temp-buffer
+      (insert-file-contents property-file)
+      (let* ((xml_root (libxml-parse-xml-region (point-min) (point-max)))
+             (property (xml-node-attributes meta_root))
+             )
+        property)
+      )
+    ))
+
+(defun abaplib-get-object-property(object-property property)
+  (cdr (assq property object-property)))
 
 (defun abaplib-setup-project ()
   "Setup ABAP Project"
@@ -345,10 +371,52 @@ After a successful login, store the authentication token in `abaplib--token'.
  ;;                '("Content-Type" . "plain/text"))
  ))
 
+(defun abaplib-check-syntax ()
+  " Check syntax for source code in current buffer"
+  (interactive)
+  (let* ((file_name (file-name-nondirectory (buffer-file-name)))
+         (file_pcs  (split-string file_name "\\." t))
+         (object_name (car file_pcs))          ; Object Name
+         (sub_type (car (cdr file_pcs)))       ; Sub Type  , prog/clas/ddls
+         (source_type (car (last file_pcs)))   ; Major Type, abap/cds
+         (meta_file (format "%s.%s.%s")))
+    )
+  )
+(defun abaplib-object-meta)
 (defun abaplib-prog-check-syntax (prog_name)
+  "Check ABAP Program Syntax"
   ())
 
+(defun abaplib-prog-check-source-syntax (prog_name source &optional version )
+  "Check ABAP program syntax based on local unsubmitted source"
+  (let* ((version (or version "active"))
+         (file_template )
+         (adtcore_uri (concat "/sap/bc/adt/programs/programs/" prog_name))
+         (chkrun_uri  (concat adtcore_uri "/source/main"))
+         (abaplib-get-object-property 'prog prog_name)
+         (chkrun_content (base64-encode-string source))
+         (post_content (abaplib-template-check-object)))
 
+    ))
+
+(defun abaplib-template-check-object (adtcore_uri chkrun_uri version chkrun_content)
+  "Return xml of checkObjects"
+  (concat
+   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+   "<chkrun:checkObjectList xmlns:adtcore=\"http://www.sap.com/adt/core\" xmlns:chkrun=\"http://www.sap.com/adt/checkrun\">"
+   (format "<chkrun:checkObject adtcore:uri=\"%s\" chkrun:version=\"%s\">"
+           adtcore_uri
+           version)
+   "<chkrun:artifacts>"
+   (format "<chkrun:artifact chkrun:contentType=\"text/plain; charset=utf-8\" chkrun:uri=\"%s\">"
+           chkrun_uri)
+   (format "<chkrun:content>%s</chkrun:content>"
+           chkrun_content)
+   "</chkrun:artifact>"
+   "</chkrun:artifacts>"
+   "</chkrun:checkObject>"
+   "</chkrun:checkObjectList>"
+   ))
 
 (provide 'abaplib)
 ;;; abaplib.el ends here
