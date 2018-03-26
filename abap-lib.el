@@ -108,14 +108,16 @@
          ))
      )))
 
-(defun abaplib-get-service-uri (service_name object_name)
+(defun abaplib-get-service-uri (service &optional object_name)
   (cond
-   ((string= service_name "query-object")
+   ((eq service 'search-object)
     (format "/sap/bc/adt/repository/informationsystem/search?operation=quickSearch&query=%s&maxResults=%s" object_name abap-query-list-max-result))
-   ((string= service_name "get-program-metadata")
+   ((eq service 'get-program-metadata)
     (format "/sap/bc/adt/programs/programs/%s" object_name))
-   ((string= service_name "get-program-source")
+   ((eq service 'get-program-source)
     (format "/sap/bc/adt/programs/programs/%s/source/main" object_name))
+   ((eq service 'checkrun)
+    (format "/sap/bc/adt/checkruns?reporters=abapCheckRun"))
    ))
 
 (defun abaplib-get-project-list ()
@@ -146,7 +148,7 @@ After a successful login, store the authentication token in `abaplib--token'.
                             (concat  abaplib--service-url
                                      (replace-regexp-in-string "^/*" "" logon-uri))
                             :sync t
-                            :headers (list abaplib--token)
+                            :headers (list trial-token)
                             :params (list (cons "sap-client" client))
                             ))))
 
@@ -287,7 +289,7 @@ After a successful login, store the authentication token in `abaplib--token'.
 (defun abaplib-request-object-list (object-name)
   (xml-get-children
    (abaplib-service-call
-    (abaplib-get-service-uri "query-object" (format "%s%%2A" object-name))
+    (abaplib-get-service-uri 'search-object (format "%s%%2A" object-name))
     nil
     :parser 'abaplib-xml-parser)
    'objectReference))
@@ -331,7 +333,7 @@ After a successful login, store the authentication token in `abaplib--token'.
 (defun abaplib-prog-get-source (prog_name)
   ;; Retrieve metadata
   (abaplib-service-call
-   (abaplib-get-service-uri "get-program-metadata" prog_name)
+   (abaplib-get-service-uri 'get-program-metadata prog_name)
    (lambda (&rest data)
      (let ((prog_metadata (format "%s" (cl-getf data :data)))
            (file (format "%s/%s.prog.xml" abaplib--project-config-dir prog_name)))
@@ -341,7 +343,7 @@ After a successful login, store the authentication token in `abaplib--token'.
    )
 ;; Retrieve source
 (abaplib-service-call
- (abaplib-get-service-uri "get-program-source" prog_name)
+ (abaplib-get-service-uri 'get-program-source prog_name)
  (lambda (&rest data)
    (let ((prog_source (format "%s" (cl-getf data :data)))
          (file (format "%s/%s.prog.abap" abaplib--project-dir prog_name)))
@@ -412,15 +414,25 @@ After a successful login, store the authentication token in `abaplib--token'.
          (adtcore_uri (concat "/sap/bc/adt/programs/programs/" prog_name))
          (chkrun_uri  (concat adtcore_uri "/source/main"))
          (chkrun_content (base64-encode-string source))
-         (post_content (abaplib-template-check-object
+         (post_data (abaplib-template-check-object
                         adtcore_uri
-                        chkrun_uri
-                        version
-                        chkrun_content)))
-    (abaplib- )
+                        chkrun_uri version chkrun_content)))
+    (abaplib-service-call
+     (abaplib-get-service-uri 'checkrun)
+     (lambda (&rest data)
+       (let ((check_report (xml-get-children (cl-getf data :data)))
+             (file (format "%s/%s.check.el" abaplib--project-dir prog_name)))
+         (unless (string= prog_source "")
+           (write-region prog_source nil file)
+           nil
+           )))
+     :parser 'abaplib-xml-parser
+     :type "POST"
+     :data post_data
+     )
     ))
 
-(defun abaplib-template-check-object (adtcore_uri chkrun_uri version chkrun_content)
+(defun abaplib-template-check-object (adtcore_uri chkrun_uri version &optional chkrun_content)
   "Return xml of checkObjects"
   (concat
    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -428,13 +440,17 @@ After a successful login, store the authentication token in `abaplib--token'.
    (format "<chkrun:checkObject adtcore:uri=\"%s\" chkrun:version=\"%s\">"
            adtcore_uri
            version)
-   "<chkrun:artifacts>"
-   (format "<chkrun:artifact chkrun:contentType=\"text/plain; charset=utf-8\" chkrun:uri=\"%s\">"
-           chkrun_uri)
-   (format "<chkrun:content>%s</chkrun:content>"
-           chkrun_content)
-   "</chkrun:artifact>"
-   "</chkrun:artifacts>"
+   (if chkrun_content
+       (concat
+        "<chkrun:artifacts>"
+        (format "<chkrun:artifact chkrun:contentType=\"text/plain; charset=utf-8\" chkrun:uri=\"%s\">"
+                chkrun_uri)
+        (format "<chkrun:content>%s</chkrun:content>"
+                chkrun_content)
+        "</chkrun:artifact>"
+        "</chkrun:artifacts>" )
+     ""
+     )
    "</chkrun:checkObject>"
    "</chkrun:checkObjectList>"
    ))
