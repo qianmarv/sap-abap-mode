@@ -136,13 +136,19 @@
   )
 
 (defun abaplib-auth-set-login-token (projectp token)
-  (setcdr (alist-get 'login-token (alist-get projectp abaplib--auth-data)) token))
+  (let ((login_token (list (cons 'login-token (list token)))))
+    (setcdr (assq 'ER9 abaplib--auth-data)
+            (append login_token (alist-get 'ER9 abaplib--auth-data))
+            )))
 
 (defun abaplib-auth-get-login-token (projectp)
   (alist-get 'login-token (alist-get projectp abaplib--auth-data)))
 
 (defun abaplib-auth-set-csrf-token (projectp token)
-  (setcdr (alist-get 'csrf-token (alist-get projectp abaplib--auth-data)) token))
+  (let ((csrf_token (list (cons 'csrf-token (list token)))))
+    (setcdr (assq 'ER9 abaplib--auth-data)
+            (append csrf_token (alist-get 'ER9 abaplib--auth-data))
+            )))
 
 (defun abaplib-auth-get-csrf-token (projectp)
   (alist-get 'csrf-token (alist-get projectp abaplib--auth-data)))
@@ -157,10 +163,9 @@
          (client   (read-string "Client: "  ))
          (projectp (intern abaplib--project-name)))
 
-
      (let* ((login_token (cons "Authorization"
-                           (format "Basic %s"
-                                    (base64-encode-string (concat username ":" password)))))
+                               (format "Basic %s"
+                                       (base64-encode-string (concat username ":" password)))))
             (login_uri "/sap/bc/adt/core/discovery")
             (response (request
                        (concat  abaplib--service-url
@@ -177,9 +182,10 @@
          "Init project auth data"
          (if (alist-get projectp abaplib--auth-data)
              ;; Remove previous login data
-             (assq-delete-all projectp abaplib--auth-data)
+             (setcdr (assq projectp abaplib--auth-data)
+                     (cons projectp t))
+           (add-to-list 'abaplib--auth-data (cons projectp t))
            )
-         (add-to-list 'abaplib--auth-data (list (cons projectp t)))
 
          (abaplib-auth-set-login-token projectp login_token)
          (abaplib-auth-set-csrf-token projectp csrf_token)
@@ -197,7 +203,7 @@
                                (call-interactively 'abaplib-select-project))))
          (is_logged (alist-get projectp abaplib--auth-data)))
     (unless is_logged ;; Try to login for the first time
-      (call-interactively 'abaplib-login)))
+      (call-interactively 'abaplib-auth-login)))
   )
 
 (defun abaplib-select-project ()
@@ -249,17 +255,18 @@
   ;; (unless abaplib--project-name
   ;;   (call-interactively 'abaplib-select-project))
   ;; (unless abaplib--token ;; Try to login for the first time
-  ;;   (call-interactively 'abaplib-login))
+  ;;   (call-interactively 'abaplib-auth-login))
 
   ;; (unless (cl-getf args :type))
   (let* ((projectp (intern abaplib--project-name))
-         (login_token (abaplib--auth-get-login-token projectp))
-         (csrf_token (abaplib--auth-get-csrf-token projectp))
+         (login_token (abaplib-auth-get-login-token projectp))
+         (csrf_token (abaplib-auth-get-csrf-token projectp))
          (headers (cl-getf args :headers))
          (type    (cl-getf args :type)))
+    ;; (message (format "header: %s" headers))
     (if (and type
              (not (string= type "GET")))
-        (add-to-list 'headers login_token csrf_token))
+        (setq headers (append headers login_token csrf_token)))
     ;; Delete :headers from args
     (append (request-response-data
              (apply #'request (if (string-match "^http[s]*://" api) api
