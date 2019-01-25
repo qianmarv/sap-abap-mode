@@ -396,6 +396,7 @@
   (modify-syntax-entry ?_  "w")
   (modify-syntax-entry ?-  "w")
   (modify-syntax-entry ?|  "\"")
+  (modify-syntax-entry ?\\ "\"")
   ;; Comment Style of Staring with "
   (modify-syntax-entry ?\" "<")
   (modify-syntax-entry ?\n ">")
