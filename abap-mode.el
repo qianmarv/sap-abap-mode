@@ -192,6 +192,11 @@
         "SELECT"
         "ENDSELECT"
         "UPDATE"
+        ;;; New Open SQL
+        "FIELDS"
+        "THEN"
+        "END"
+        "AS"
         ;;; Native SQL
         "EXEC SQL" "ENDEXEC"
         ;;; ABAP and HANA
