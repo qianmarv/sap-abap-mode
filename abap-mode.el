@@ -199,6 +199,7 @@
         "END"
         "AS"
         "GROUP BY"
+        "ON"
         ;;; Native SQL
         "EXEC SQL" "ENDEXEC"
         ;;; ABAP and HANA
@@ -365,7 +366,7 @@
 (setq abap-constants '("SPACE" "SY-" "ABAP_FALSE" "ABAP_TRUE"))
 (setq abap-events    '("START-OF-SELECTION" "AT SELECTION-SCREEN"))
 (setq abap-functions '("STRLEN" "CONCATENATE" "SPLIT" "lines" "line_exists" ))
-(setq abap-functional-programming '("DATA" "VALUE" "FIELD-SYMBOL"))
+(setq abap-functional-programming '("@DATA" "DATA" "VALUE" "FIELD-SYMBOL"))
 
 ;; Generate regex string for each category
 (setq abap-keywords-regexp  ( regexp-opt abap-keywords  'words))
