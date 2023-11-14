@@ -176,6 +176,7 @@
         "REPLACE IN TABLE"
         "SORT"
         "SUM"
+        "CORRESPONDING FIELDS"
         ;;; Meshes
         "SET ASSOCIATION"
         ;;; Attributes of Data Objects
@@ -197,6 +198,7 @@
         "THEN"
         "END"
         "AS"
+        "GROUP BY"
         ;;; Native SQL
         "EXEC SQL" "ENDEXEC"
         ;;; ABAP and HANA
@@ -362,7 +364,8 @@
 (setq abap-types    '("C" "I" "F" "STRING" "X" "XSTRING" "N" "P" "ABAP_BOOL") )
 (setq abap-constants '("SPACE" "SY-" "ABAP_FALSE" "ABAP_TRUE"))
 (setq abap-events    '("START-OF-SELECTION" "AT SELECTION-SCREEN"))
-(setq abap-functions '("STRLEN" "CONCATENATE" "SPLIT" ))
+(setq abap-functions '("STRLEN" "CONCATENATE" "SPLIT" "lines" "line_exists" ))
+(setq abap-functional-programming '("DATA" "VALUE" "FIELD-SYMBOL"))
 
 ;; Generate regex string for each category
 (setq abap-keywords-regexp  ( regexp-opt abap-keywords  'words))
@@ -370,6 +373,7 @@
 (setq abap-constants-regexp ( regexp-opt abap-constants 'words))
 (setq abap-event-regexp     ( regexp-opt abap-events    'words))
 (setq abap-functions-regexp ( regexp-opt abap-functions 'words))
+(setq abap-functional-programming-regexp ( regexp-opt abap-functional-programming 'words))
 
 ;; create the list for font-lock
 (setq abap-font-lock-keywords
@@ -379,6 +383,7 @@
         (,abap-functions-regexp . font-lock-function-name-face)
         (,abap-keywords-regexp  . font-lock-keyword-face)
         (,abap-type-regexp      . font-lock-type-face)
+        (,abap-functional-programming-regexp     . font-lock-builtin-face)
         ;; Order above matters, in general longer words first
         ))
 
